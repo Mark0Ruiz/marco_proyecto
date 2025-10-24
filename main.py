@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import conteos, auth
+from app.routers import conteos, auth, catalogo
 from app.core.database import engine
 from app.models import models
 
@@ -25,6 +25,7 @@ app.add_middleware(
 # Incluir routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(conteos.router, prefix="/api/v1/conteos", tags=["Conteos"])
+app.include_router(catalogo.router)
 
 @app.get("/")
 async def root():

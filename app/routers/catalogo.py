@@ -1,0 +1,37 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List
+
+from app.core.database import get_db
+from app.core.security import get_current_user
+from app.models.models import Usuarios
+from app.schemas.schemas import ProductoCreate, ProductoResponse
+from app.services.catalogo_service import CatalogoService
+
+router = APIRouter(
+    prefix="/api/v1/catalogo",
+    tags=["catalogo"]
+)
+
+@router.get("/", response_model=List[ProductoResponse])
+async def listar_productos(
+    db: Session = Depends(get_db),
+    current_user: Usuarios = Depends(get_current_user)
+):
+    """
+    Obtener todos los productos del catálogo.
+    Solo usuarios autenticados pueden ver los productos.
+    """
+    return CatalogoService.listar_productos(db)
+
+@router.post("/crear", response_model=ProductoResponse)
+async def crear_producto(
+    producto_data: ProductoCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuarios = Depends(get_current_user)
+):
+    """
+    Crear un nuevo producto en el catálogo.
+    Solo usuarios autenticados pueden crear productos.
+    """
+    return CatalogoService.crear_producto(db, producto_data)

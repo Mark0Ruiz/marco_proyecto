@@ -11,14 +11,27 @@ class UserRole(str, Enum):
 
 # Schemas para productos/catálogo
 class ProductoBase(BaseModel):
+    CodigoBarras: str = Field(..., description="Código de barras del producto")
+    Producto: str = Field(..., description="Nombre del producto")
+    IdMaterial: str = Field(..., description="ID del material")
+    IdFamilia: int = Field(..., description="ID de la familia")
+    IdCategoria: int = Field(..., description="ID de la categoría")
+    IdSubcategoria: int = Field(..., description="ID de la subcategoría")
+
+class ProductoCreate(ProductoBase):
+    pass
+
+class ProductoResponse(BaseModel):
     CodigoBarras: str
     Producto: str
     IdMaterial: str
     IdFamilia: int
     IdCategoria: int
     IdSubcategoria: int
+    Familia: str
+    Categoria: str
+    Subcategoria: str
 
-class ProductoResponse(ProductoBase):
     class Config:
         from_attributes = True
 
@@ -27,6 +40,7 @@ class ConteoDetalleBase(BaseModel):
     CodigoBarras: str = Field(..., description="Código de barras del producto")
     NSistema: float = Field(..., description="Número de existencias en sistema")
     NExcistencia: float = Field(..., description="Número de existencias físicas")
+    Precio: float = Field(..., description="Precio del producto")
 
 class ConteoDetalleCreate(ConteoDetalleBase):
     pass

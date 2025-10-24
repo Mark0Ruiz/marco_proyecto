@@ -149,6 +149,7 @@ class ConteoDetalles(Base):
     CodigoBarras = Column(String(20), ForeignKey("catalogo.CodigoBarras"), nullable=False)
     NSistema = Column(Float, nullable=False)
     NExcistencia = Column(Float, nullable=False)
+    Precio = Column(Float, nullable=False)
     
     # Relaciones
     conteo = relationship("Conteo", back_populates="detalles")

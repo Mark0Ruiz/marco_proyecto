@@ -59,7 +59,8 @@ class ConteoService:
                 IdConteo=nuevo_conteo.idConteo,
                 CodigoBarras=detalle.CodigoBarras,
                 NSistema=detalle.NSistema,
-                NExcistencia=detalle.NExcistencia
+                NExcistencia=detalle.NExcistencia,
+                Precio=detalle.Precio
             )
             db.add(nuevo_detalle)
         
@@ -135,7 +136,8 @@ class ConteoService:
                 IdConteo=nuevo_conteo.idConteo,
                 CodigoBarras=detalle.CodigoBarras,
                 NSistema=detalle.NSistema,
-                NExcistencia=detalle.NExcistencia
+                NExcistencia=detalle.NExcistencia,
+                Precio=detalle.Precio
             )
             db.add(nuevo_detalle)
         
@@ -223,7 +225,8 @@ class ConteoService:
                     IdConteo=conteo_id,
                     CodigoBarras=detalle.CodigoBarras,
                     NSistema=detalle.NSistema,
-                    NExcistencia=detalle.NExcistencia
+                    NExcistencia=detalle.NExcistencia,
+                    Precio=detalle.Precio
                 )
                 db.add(nuevo_detalle)
         
