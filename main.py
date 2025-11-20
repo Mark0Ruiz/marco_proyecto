@@ -27,6 +27,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(conteos.router, prefix="/api/v1/conteos", tags=["Conteos"])
 app.include_router(catalogo.router)
 
+
 @app.get("/")
 async def root():
     return {"message": "API Conteos SCISP - Sistema de conteos de productos"}
