@@ -1,0 +1,600 @@
+﻿'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { FiPlus, FiTrash2, FiSave, FiArrowLeft, FiCamera, FiShoppingBag, FiUser, FiEdit2, FiX, FiAlertCircle, FiCheckCircle } from 'react-icons/fi'
+import { useAuth } from '@/context/AuthContext'
+import { conteosAPI } from '@/lib/api'
+import { ConteoDetalle } from '@/types/api'
+import dynamic from 'next/dynamic'
+
+const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ssr: false })
+
+interface ProductoAgregado extends ConteoDetalle {
+  id: string
+}
+
+export default function CrearConteo() {
+  const { user } = useAuth()
+  const router = useRouter()
+  
+  const [formData, setFormData] = useState({
+    IdCentro: '',
+  })
+  const [productosAgregados, setProductosAgregados] = useState<ProductoAgregado[]>([])
+  const [productoActual, setProductoActual] = useState({ CodigoBarras: '', NSistema: 0, NExcistencia: 0, Precio: 0 })
+  const [sucursales, setSucursales] = useState<{ IdCentro: string; Sucursales: string }[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
+  const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({})
+  const [showScanner, setShowScanner] = useState(false)
+  const [showToast, setShowToast] = useState(false)
+
+  useEffect(() => {
+    loadSucursales()
+  }, [])
+
+  const loadSucursales = async () => {
+    try {
+      setLoadingData(true)
+      const sucursalesResponse = await conteosAPI.getSucursales()
+      setSucursales(sucursalesResponse)
+    } catch (error: any) {
+      setError('Error al cargar las sucursales')
+      console.error(error)
+    } finally {
+      setLoadingData(false)
+    }
+  }
+
+  const agregarProducto = () => {
+    const errors: { [key: string]: string } = {}
+    
+    if (!productoActual.CodigoBarras) {
+      errors.CodigoBarras = 'Debes ingresar un código de barras'
+    }
+    if (productoActual.NSistema === 0) {
+      errors.NSistema = 'Debes capturar las existencias en sistema'
+    }
+    if (productoActual.NExcistencia === 0) {
+      errors.NExcistencia = 'Debes capturar las existencias físicas para continuar'
+    }
+    if (productoActual.Precio === 0) {
+      errors.Precio = 'Debes ingresar el precio del producto'
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+    
+    const nuevoProducto: ProductoAgregado = {
+      ...productoActual,
+      id: Date.now().toString()
+    }
+    
+    setProductosAgregados([...productosAgregados, nuevoProducto])
+    setProductoActual({ CodigoBarras: '', NSistema: 0, NExcistencia: 0, Precio: 0 })
+    setFieldErrors({})
+  }
+
+  const eliminarProducto = (id: string) => {
+    setProductosAgregados(productosAgregados.filter(p => p.id !== id))
+  }
+
+  const editarProducto = (id: string) => {
+    const producto = productosAgregados.find(p => p.id === id)
+    if (producto) {
+      setProductoActual({ 
+        CodigoBarras: producto.CodigoBarras, 
+        NSistema: producto.NSistema, 
+        NExcistencia: producto.NExcistencia,
+        Precio: producto.Precio
+      })
+      eliminarProducto(id)
+    }
+  }
+
+  const openScanner = () => {
+    if (!formData.IdCentro) {
+      setFieldErrors({ ...fieldErrors, IdCentro: 'Selecciona una sucursal primero' })
+      return
+    }
+    setShowScanner(true)
+  }
+
+  const handleScan = (barcode: string) => {
+    setProductoActual({ ...productoActual, CodigoBarras: barcode })
+    setShowScanner(false)
+    setFieldErrors({ ...fieldErrors, CodigoBarras: '' })
+  }
+
+  const closeScanner = () => {
+    setShowScanner(false)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.IdCentro) {
+      setFieldErrors({ IdCentro: 'Debes seleccionar una sucursal' })
+      return
+    }
+    
+    if (productosAgregados.length === 0) {
+      setError('Debes agregar al menos un producto al conteo')
+      return
+    }
+    
+    setLoading(true)
+    setError('')
+
+    try {
+      const detalles = productosAgregados.map(p => ({
+        CodigoBarras: p.CodigoBarras,
+        NSistema: p.NSistema,
+        NExcistencia: p.NExcistencia,
+        Precio: p.Precio
+      }))
+      
+      await conteosAPI.createConteo({ IdCentro: formData.IdCentro, detalles })
+      
+      setShowToast(true)
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 2000)
+    } catch (error: any) {
+      console.error('Error al crear conteo:', error)
+      let errorMessage = 'Error al crear el conteo'
+      
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail
+            .map((err: any) => `${err.loc?.join(' → ') || 'Error'}: ${err.msg}`)
+            .join(', ')
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail
+        }
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loadingData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header */}
+        <div className="mb-8">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+          >
+            <FiArrowLeft className="w-5 h-5 mr-2" />
+            Volver
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900">Crear Conteo</h1>
+          <p className="mt-2 text-gray-600">
+            Sigue los pasos para registrar un nuevo conteo de productos
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Error global */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+              <FiAlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Paso 1: Información General */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-blue-200">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                  1
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Información General</h2>
+                  <p className="text-sm text-gray-600">Selecciona la sucursal para comenzar</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <FiShoppingBag className="w-4 h-4 text-gray-500" />
+                    Sucursal <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                      fieldErrors.IdCentro ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
+                    value={formData.IdCentro}
+                    onChange={(e) => {
+                      setFormData({ IdCentro: e.target.value })
+                      setFieldErrors({ ...fieldErrors, IdCentro: '' })
+                    }}
+                  >
+                    <option value="">Selecciona una sucursal</option>
+                    {sucursales.map(suc => (
+                      <option key={suc.IdCentro} value={suc.IdCentro}>
+                        {suc.Sucursales} ({suc.IdCentro})
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.IdCentro && (
+                    <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                      <FiAlertCircle className="w-3 h-3" />
+                      {fieldErrors.IdCentro}
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <FiUser className="w-4 h-4 text-gray-500" />
+                    Usuario
+                  </label>
+                  <div className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <span className="text-gray-900 font-medium">{user?.NombreUsuario || ''}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Paso 2: Productos a Contar */}
+          <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden transition-opacity ${
+            !formData.IdCentro ? 'opacity-50 pointer-events-none' : ''
+          }`}>
+            <div className="bg-gradient-to-r from-green-50 to-green-100 px-6 py-4 border-b border-green-200">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-sm">
+                  2
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Productos a Contar</h2>
+                  <p className="text-sm text-gray-600">
+                    {formData.IdCentro ? 'Escanea o agrega productos manualmente' : 'Selecciona una sucursal para comenzar el conteo'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Formulario de captura */}
+              <div className="border border-gray-200 rounded-lg p-5 bg-gray-50">
+                <div className="space-y-4">
+                  {/* Código de Barras */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Código de Barras <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          disabled={!formData.IdCentro}
+                          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                            fieldErrors.CodigoBarras ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                          }`}
+                          placeholder="Escanea o escribe el código de barras"
+                          value={productoActual.CodigoBarras}
+                          onChange={(e) => {
+                            setProductoActual({ ...productoActual, CodigoBarras: e.target.value })
+                            setFieldErrors({ ...fieldErrors, CodigoBarras: '' })
+                          }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openScanner}
+                        disabled={!formData.IdCentro}
+                        className={`px-6 py-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-colors ${
+                          showScanner
+                            ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                            : 'bg-green-600 hover:bg-green-700 text-white disabled:bg-gray-300 disabled:cursor-not-allowed'
+                        }`}
+                        title={showScanner ? "Detener escaneo" : "Escanear código de barras"}
+                      >
+                        <FiCamera className="w-5 h-5" />
+                        <span className="hidden sm:inline">{showScanner ? 'Detener' : 'Escanear'}</span>
+                      </button>
+                    </div>
+                    {fieldErrors.CodigoBarras && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <FiAlertCircle className="w-3 h-3" />
+                        {fieldErrors.CodigoBarras}
+                      </p>
+                    )}
+                    {showScanner && (
+                      <p className="mt-2 text-sm text-blue-600 flex items-center gap-1 animate-pulse">
+                        <FiCamera className="w-3 h-3" />
+                        Apunta la cámara al código de barras
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Existencias */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Existencias Sistema <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        disabled={!formData.IdCentro}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          fieldErrors.NSistema ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        }`}
+                        placeholder="0"
+                        value={productoActual.NSistema || ''}
+                        onChange={(e) => {
+                          setProductoActual({ ...productoActual, NSistema: parseFloat(e.target.value) || 0 })
+                          setFieldErrors({ ...fieldErrors, NSistema: '' })
+                        }}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Según inventario actual</p>
+                      {fieldErrors.NSistema && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                          <FiAlertCircle className="w-3 h-3" />
+                          {fieldErrors.NSistema}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Existencias Físicas <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        disabled={!formData.IdCentro}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          fieldErrors.NExcistencia ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        }`}
+                        placeholder="0"
+                        value={productoActual.NExcistencia || ''}
+                        onChange={(e) => {
+                          setProductoActual({ ...productoActual, NExcistencia: parseFloat(e.target.value) || 0 })
+                          setFieldErrors({ ...fieldErrors, NExcistencia: '' })
+                        }}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Cantidad contada en piso</p>
+                      {fieldErrors.NExcistencia && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                          <FiAlertCircle className="w-3 h-3" />
+                          {fieldErrors.NExcistencia}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Precio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Precio <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.01"
+                      min="0"
+                      disabled={!formData.IdCentro}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                        fieldErrors.Precio ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                      }`}
+                      placeholder="0.00"
+                      value={productoActual.Precio || ''}
+                      onChange={(e) => {
+                        setProductoActual({ ...productoActual, Precio: parseFloat(e.target.value) || 0 })
+                        setFieldErrors({ ...fieldErrors, Precio: '' })
+                      }}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Precio unitario del producto</p>
+                    {fieldErrors.Precio && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <FiAlertCircle className="w-3 h-3" />
+                        {fieldErrors.Precio}
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Diferencia automática */}
+                  {(productoActual.NSistema > 0 || productoActual.NExcistencia > 0) && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700">Diferencia</span>
+                        <span className={`text-lg font-bold ${
+                          productoActual.NExcistencia - productoActual.NSistema === 0
+                            ? 'text-green-600'
+                            : productoActual.NExcistencia - productoActual.NSistema > 0
+                            ? 'text-blue-600'
+                            : 'text-red-600'
+                        }`}>
+                          {productoActual.NExcistencia - productoActual.NSistema > 0 ? '+' : ''}
+                          {(productoActual.NExcistencia - productoActual.NSistema).toFixed(2)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">Físico - Sistema</p>
+                    </div>
+                  )}
+                  
+                  <button
+                    type="button"
+                    onClick={agregarProducto}
+                    disabled={!formData.IdCentro}
+                    className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <FiPlus className="w-5 h-5" />
+                    Agregar a la lista
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de productos agregados */}
+              {productosAgregados.length > 0 && (
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      Productos agregados ({productosAgregados.length})
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium">Código</th>
+                          <th className="px-4 py-3 text-right font-medium">Sistema</th>
+                          <th className="px-4 py-3 text-right font-medium">Físico</th>
+                          <th className="px-4 py-3 text-right font-medium">Precio</th>
+                          <th className="px-4 py-3 text-right font-medium">Diferencia</th>
+                          <th className="px-4 py-3 text-center font-medium">Opciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {productosAgregados.map((producto) => {
+                          const diferencia = producto.NExcistencia - producto.NSistema
+                          return (
+                            <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                {producto.CodigoBarras}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 text-right">
+                                {producto.NSistema.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 text-right">
+                                {producto.NExcistencia.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 text-right">
+                                ${producto.Precio.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-3 text-sm font-semibold text-right">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                  diferencia === 0
+                                    ? 'bg-green-100 text-green-800'
+                                    : diferencia > 0
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {diferencia > 0 ? '+' : ''}{diferencia.toFixed(2)}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => editarProducto(producto.id)}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="Editar producto"
+                                  >
+                                    <FiEdit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => eliminarProducto(producto.id)}
+                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="Eliminar producto"
+                                  >
+                                    <FiTrash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">
+                      Total de productos
+                    </span>
+                    <span className="text-lg font-bold text-gray-900">
+                      {productosAgregados.length}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Toast Notification */}
+          {showToast && (
+            <div className="fixed top-4 right-4 bg-green-600 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-in-right flex items-center gap-3">
+              <FiCheckCircle className="w-6 h-6" />
+              <div>
+                <p className="font-semibold">¡Conteo creado exitosamente!</p>
+                <p className="text-sm text-green-100">Ahora puedes asignarlo o comenzar a contestarlo.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="fixed bottom-0 left-0 right-0 md:static bg-white border-t border-gray-200 px-4 py-4 md:py-0 md:border-0 shadow-lg md:shadow-none">
+            <div className="flex gap-3 max-w-5xl mx-auto">
+              <button
+                type="button"
+                onClick={() => router.push('/conteos')}
+                className="flex-1 md:flex-none px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2 min-h-[48px]"
+              >
+                <FiX className="w-5 h-5" />
+                <span className="hidden sm:inline">Cancelar</span>
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 md:flex-none px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium transition-colors flex items-center justify-center gap-2 min-h-[48px]"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span className="hidden sm:inline">Creando...</span>
+                  </>
+                ) : (
+                  <>
+                    <FiSave className="w-5 h-5" />
+                    <span className="hidden sm:inline">Crear Conteo</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {/* Barcode Scanner Modal */}
+        {showScanner && (
+          <BarcodeScanner
+            onScan={handleScan}
+            onClose={closeScanner}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
