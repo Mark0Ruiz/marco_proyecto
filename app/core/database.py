@@ -3,12 +3,25 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
+# Configuración de argumentos extra para la conexión
+connect_args = {}
+
+# Si la base es MySQL (mysql+pymysql://...), activamos SSL
+if settings.DATABASE_URL.startswith("mysql"):
+    connect_args = {
+        "ssl": {
+            # Bundle de certificados del contenedor (Azure App Service Linux)
+            "ca": "/etc/ssl/certs/ca-certificates.crt"
+        }
+    }
+
 # Crear el motor de la base de datos
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=False  # Cambiar a True para ver las consultas SQL en desarrollo
+    echo=False,           # Cambiar a True para ver las consultas SQL en desarrollo
+    connect_args=connect_args
 )
 
 # Crear el SessionLocal para las sesiones de base de datos
