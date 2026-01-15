@@ -26,6 +26,7 @@ export interface ConteoDetalle {
 export interface ConteoDetalleResponse extends ConteoDetalle {
   idConteoDetalles: number;
   IdConteo: number;
+  Producto: string;
 }
 
 export interface ConteoCreate {

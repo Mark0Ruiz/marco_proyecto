@@ -52,6 +52,7 @@ class ConteoDetalleUpdate(BaseModel):
 class ConteoDetalleResponse(ConteoDetalleBase):
     idConteoDetalles: int
     IdConteo: int
+    Producto: str = Field(..., description="Nombre del producto")
     
     class Config:
         from_attributes = True

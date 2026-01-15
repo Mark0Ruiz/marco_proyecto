@@ -361,9 +361,30 @@ class ConteoService:
     def _build_conteo_response(db: Session, conteo: Conteo) -> ConteoResponse:
         """Construir respuesta completa del conteo con detalles"""
         
-        detalles = db.query(ConteoDetalles).filter(
+        # Hacer join con Catalogo para obtener el nombre del producto
+        detalles_query = db.query(
+            ConteoDetalles,
+            Catalogo.Producto
+        ).join(
+            Catalogo,
+            ConteoDetalles.CodigoBarras == Catalogo.CodigoBarras
+        ).filter(
             ConteoDetalles.IdConteo == conteo.idConteo
         ).all()
+        
+        # Construir lista de detalles con el nombre del producto
+        detalles = []
+        for detalle, producto_nombre in detalles_query:
+            detalle_dict = {
+                "idConteoDetalles": detalle.idConteoDetalles,
+                "IdConteo": detalle.IdConteo,
+                "CodigoBarras": detalle.CodigoBarras,
+                "NSistema": detalle.NSistema,
+                "NExcistencia": detalle.NExcistencia,
+                "Precio": detalle.Precio,
+                "Producto": producto_nombre
+            }
+            detalles.append(detalle_dict)
         
         return ConteoResponse(
             idConteo=conteo.idConteo,
