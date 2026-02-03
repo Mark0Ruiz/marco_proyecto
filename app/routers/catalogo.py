@@ -24,6 +24,18 @@ async def listar_productos(
     """
     return CatalogoService.listar_productos(db)
 
+@router.get("/{codigo_barras}", response_model=ProductoResponse)
+async def obtener_producto(
+    codigo_barras: str,
+    db: Session = Depends(get_db),
+    current_user: Usuarios = Depends(get_current_user)
+):
+    """
+    Obtener un producto específico por código de barras.
+    Solo usuarios autenticados pueden ver el producto.
+    """
+    return CatalogoService.obtener_producto_por_codigo(db, codigo_barras)
+
 @router.post("/crear", response_model=ProductoResponse)
 async def crear_producto(
     producto_data: ProductoCreate,

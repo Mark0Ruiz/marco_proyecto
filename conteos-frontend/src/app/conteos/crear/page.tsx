@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FiPlus, FiTrash2, FiSave, FiArrowLeft, FiCamera, FiShoppingBag, FiUser, FiEdit2, FiX, FiAlertCircle, FiCheckCircle } from 'react-icons/fi'
 import { useAuth } from '@/context/AuthContext'
-import { conteosAPI } from '@/lib/api'
+import { conteosAPI, catalogoAPI } from '@/lib/api'
 import { ConteoDetalle } from '@/types/api'
 import dynamic from 'next/dynamic'
 
@@ -12,6 +12,7 @@ const BarcodeScanner = dynamic(() => import('@/components/BarcodeScanner'), { ss
 
 interface ProductoAgregado extends ConteoDetalle {
   id: string
+  Producto?: string
 }
 
 export default function CrearConteo() {
@@ -48,7 +49,7 @@ export default function CrearConteo() {
     }
   }
 
-  const agregarProducto = () => {
+  const agregarProducto = async () => {
     const errors: { [key: string]: string } = {}
     
     if (!productoActual.CodigoBarras) {
@@ -69,14 +70,30 @@ export default function CrearConteo() {
       return
     }
     
-    const nuevoProducto: ProductoAgregado = {
-      ...productoActual,
-      id: Date.now().toString()
+    try {
+      // Obtener el nombre del producto desde el código de barras
+      let nombreProducto = 'Desconocido'
+      try {
+        const producto = await catalogoAPI.getProducto(productoActual.CodigoBarras)
+        nombreProducto = producto.Producto
+      } catch (err) {
+        // Si no se encuentra el producto, usar "Desconocido"
+        console.warn('Producto no encontrado en catálogo:', productoActual.CodigoBarras)
+      }
+      
+      const nuevoProducto: ProductoAgregado = {
+        ...productoActual,
+        id: Date.now().toString(),
+        Producto: nombreProducto
+      }
+      
+      setProductosAgregados([...productosAgregados, nuevoProducto])
+      setProductoActual({ CodigoBarras: '', NSistema: 0, NExcistencia: 0, Precio: 0 })
+      setFieldErrors({})
+    } catch (err) {
+      console.error('Error al agregar producto:', err)
+      setError('Error al agregar el producto')
     }
-    
-    setProductosAgregados([...productosAgregados, nuevoProducto])
-    setProductoActual({ CodigoBarras: '', NSistema: 0, NExcistencia: 0, Precio: 0 })
-    setFieldErrors({})
   }
 
   const eliminarProducto = (id: string) => {
@@ -469,6 +486,7 @@ export default function CrearConteo() {
                     <table className="w-full">
                       <thead className="bg-gray-100 text-xs uppercase text-gray-600">
                         <tr>
+                          <th className="px-4 py-3 text-left font-medium">Producto</th>
                           <th className="px-4 py-3 text-left font-medium">Código</th>
                           <th className="px-4 py-3 text-right font-medium">Sistema</th>
                           <th className="px-4 py-3 text-right font-medium">Físico</th>
@@ -483,6 +501,9 @@ export default function CrearConteo() {
                           return (
                             <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
                               <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                {producto.Producto || 'Desconocido'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700">
                                 {producto.CodigoBarras}
                               </td>
                               <td className="px-4 py-3 text-sm text-gray-700 text-right">

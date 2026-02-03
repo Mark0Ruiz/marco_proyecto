@@ -227,6 +227,14 @@ export default function ContestarConteos() {
                       <div className="grid grid-cols-1 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Producto
+                          </label>
+                          <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-medium">
+                            {detalle.Producto || 'N/A'}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
                             Código de Barras
                           </label>
                           <input

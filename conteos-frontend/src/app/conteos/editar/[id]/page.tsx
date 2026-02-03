@@ -12,6 +12,7 @@ interface ConteoDetalle {
   NSistema: number
   NExcistencia: number
   Precio: number
+  Producto?: string
 }
 
 interface Conteo {
@@ -232,6 +233,9 @@ export default function EditarConteoPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Producto
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Código de Barras
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -253,6 +257,9 @@ export default function EditarConteoPage() {
                   const diferencia = detalle.NExcistencia - detalle.NSistema
                   return (
                     <tr key={detalle.idConteoDetalles} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                        {detalle.Producto || 'Desconocido'}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {detalle.CodigoBarras}
                       </td>

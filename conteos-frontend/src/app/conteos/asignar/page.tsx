@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { FiCalendar, FiUser, FiArrowLeft, FiSave, FiCamera, FiShoppingBag, FiTrash2, FiPlus, FiCheckCircle, FiAlertCircle } from 'react-icons/fi'
 import { useAuth } from '@/context/AuthContext'
-import { conteosAPI } from '@/lib/api'
+import { conteosAPI, catalogoAPI } from '@/lib/api'
 import { ConteoResponse, ConteoListResponse, User, Usuario } from '@/types/api'
 import dynamic from 'next/dynamic'
 
@@ -31,6 +31,7 @@ export default function AsignarConteo() {
     CodigoBarras: string
     NSistema: number
     Precio: number
+    Producto?: string
   }>>([])
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
@@ -77,7 +78,7 @@ export default function AsignarConteo() {
     setShowScanner(false)
   }
 
-  const agregarProducto = () => {
+  const agregarProducto = async () => {
     // Validar campos
     const errors: { [key: string]: string } = {}
     if (!productoActual.CodigoBarras) errors.CodigoBarras = 'El código de barras es requerido'
@@ -89,16 +90,32 @@ export default function AsignarConteo() {
       return
     }
 
-    // Agregar producto con ID único
-    const nuevoProducto = {
-      ...productoActual,
-      id: Date.now().toString()
+    try {
+      // Obtener el nombre del producto desde el código de barras
+      let nombreProducto = 'Desconocido'
+      try {
+        const producto = await catalogoAPI.getProducto(productoActual.CodigoBarras)
+        nombreProducto = producto.Producto
+      } catch (err) {
+        // Si no se encuentra el producto, usar "Desconocido"
+        console.warn('Producto no encontrado en catálogo:', productoActual.CodigoBarras)
+      }
+
+      // Agregar producto con ID único
+      const nuevoProducto = {
+        ...productoActual,
+        id: Date.now().toString(),
+        Producto: nombreProducto
+      }
+      setProductosAgregados([...productosAgregados, nuevoProducto])
+      
+      // Limpiar formulario
+      setProductoActual({ CodigoBarras: '', NSistema: 0, Precio: 0 })
+      setFieldErrors({})
+    } catch (err) {
+      console.error('Error al agregar producto:', err)
+      setError('Error al agregar el producto')
     }
-    setProductosAgregados([...productosAgregados, nuevoProducto])
-    
-    // Limpiar formulario
-    setProductoActual({ CodigoBarras: '', NSistema: 0, Precio: 0 })
-    setFieldErrors({})
   }
 
   const eliminarProducto = (id: string) => {
@@ -450,6 +467,7 @@ export default function AsignarConteo() {
                     <table className="w-full">
                       <thead className="bg-gray-100 text-xs uppercase text-gray-600">
                         <tr>
+                          <th className="px-4 py-3 text-left font-medium">Producto</th>
                           <th className="px-4 py-3 text-left font-medium">Código</th>
                           <th className="px-4 py-3 text-right font-medium">Cantidad</th>
                           <th className="px-4 py-3 text-right font-medium">Precio</th>
@@ -460,6 +478,9 @@ export default function AsignarConteo() {
                         {productosAgregados.map((producto) => (
                           <tr key={producto.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                              {producto.Producto || 'Desconocido'}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
                               {producto.CodigoBarras}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700 text-right">

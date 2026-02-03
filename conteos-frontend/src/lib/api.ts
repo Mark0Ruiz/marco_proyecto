@@ -128,6 +128,12 @@ export const catalogoAPI = {
     return response.data
   },
 
+  // Obtener un producto específico por código de barras
+  getProducto: async (codigoBarras: string) => {
+    const response = await api.get(`/api/v1/catalogo/${codigoBarras}`)
+    return response.data
+  },
+
   // Crear nuevo producto
   createProducto: async (data: {
     CodigoBarras: string

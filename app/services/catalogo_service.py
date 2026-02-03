@@ -103,6 +103,42 @@ class CatalogoService:
             )
     
     @staticmethod
+    def obtener_producto_por_codigo(db: Session, codigo_barras: str) -> dict:
+        """Obtener un producto específico por código de barras"""
+        
+        producto = (
+            db.query(
+                Catalogo,
+                CatFamilia.Familia,
+                CatCategoria.Categoria,
+                CatSubcategoria.Subcategoria
+            )
+            .join(CatFamilia, Catalogo.IdFamilia == CatFamilia.IdFamilia)
+            .join(CatCategoria, Catalogo.IdCategoria == CatCategoria.IdCategoria)
+            .join(CatSubcategoria, Catalogo.IdSubcategoria == CatSubcategoria.IdCatSubcategoria)
+            .filter(Catalogo.CodigoBarras == codigo_barras)
+            .first()
+        )
+        
+        if not producto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No se encontró el producto con código de barras {codigo_barras}"
+            )
+        
+        return {
+            "CodigoBarras": producto[0].CodigoBarras,
+            "Producto": producto[0].Producto,
+            "IdMaterial": producto[0].IdMaterial,
+            "IdFamilia": producto[0].IdFamilia,
+            "IdCategoria": producto[0].IdCategoria,
+            "IdSubcategoria": producto[0].IdSubcategoria,
+            "Familia": producto[1],
+            "Categoria": producto[2],
+            "Subcategoria": producto[3]
+        }
+    
+    @staticmethod
     def eliminar_producto(db: Session, codigo_barras: str) -> dict:
         """Eliminar un producto del catálogo"""
         
