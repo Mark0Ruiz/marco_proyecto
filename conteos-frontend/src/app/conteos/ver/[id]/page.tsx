@@ -245,10 +245,10 @@ export default function VerConteo() {
                     #
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Código de Barras
+                    Producto
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Producto
+                    Código de Barras
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Existencias Sistema
@@ -277,11 +277,11 @@ export default function VerConteo() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {index + 1}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                        {detalle.CodigoBarras}
-                      </td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {detalle.Producto}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                        {detalle.CodigoBarras}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 text-right">
                         {detalle.NSistema.toFixed(2)}

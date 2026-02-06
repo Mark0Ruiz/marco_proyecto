@@ -21,12 +21,14 @@ export interface ConteoDetalle {
   CodigoBarras: string;
   NSistema: number;
   NExcistencia: number;
+  Precio: number;
 }
 
 export interface ConteoDetalleResponse extends ConteoDetalle {
   idConteoDetalles: number;
   IdConteo: number;
   Producto: string;
+  Precio: number;
 }
 
 export interface ConteoCreate {
